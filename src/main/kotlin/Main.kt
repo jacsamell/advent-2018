@@ -1,60 +1,62 @@
 import java.nio.file.Files
-import java.nio.file.Path
 import java.nio.file.Paths
+import kotlin.math.abs
 
-const val workers = 5
-
-val regex = """Step (.) must be finished before step (.) can begin\.""".toRegex()
-
-var answer = 0
-var working = listOf<Pair<Char, Int>>()
+val regex = """(\d+), (\d+)""".toRegex()
 
 fun main(args: Array<String>) {
     val allLines = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data"))
 
-    var deps = allLines
+    val coords = allLines
         .map {
             val vals = regex.find(it)!!.groupValues
-            vals[1].toCharArray()[0] to vals[2].toCharArray()[0]
-        }
-        .groupBy {
-            it.second
-        }
-        .mapValues { it.value.map { it.first } }
-
-    var unblocked = deps.values.flatten().toSet().filter { it: Char -> !deps.containsKey(it) }
-
-    while (unblocked.isNotEmpty() || working.isNotEmpty()) {
-        // pick up jobs
-        while (working.size < workers && unblocked.isNotEmpty()) {
-            val selected = unblocked.sorted().first()
-
-            unblocked -= selected
-
-            working += selected to selected.toTime()
+            vals[1].toInt() to vals[2].toInt()
         }
 
-        // increase time
-        answer++
+    val maxX = coords.maxBy { it.first }!!.first
+    val maxY = coords.maxBy { it.second }!!.second
+    val minX = coords.minBy { it.first }!!.first
+    val minY = coords.minBy { it.second }!!.second
 
-        // expire completed jobs
-        working = working.map { it.first to it.second - 1 }
+    val points = mutableMapOf<Pair<Int, Int>, Pair<Int, Int>?>()
 
-        val completed = working.filter { it.second == 0 }.map { it.first }
-
-        working = working.filter { it.second > 0 }
-
-        completed.forEach { c ->
-            deps = deps.mapValues { it.value.minus(c) }
-
-            unblocked += deps.filterValues { it.isEmpty() }.map { it.key }
-
-            deps = deps.filterValues { it.isNotEmpty() }
+    val xRange = minX..maxX
+    val yRange = minY..maxY
+    for (i in xRange) {
+        for (j in yRange) {
+            val minDist = coords.groupBy { abs(it.first - i) + abs(it.second - j) }.minBy { it.key }!!
+            if (minDist.value.size == 1) {
+                points[i to j] = minDist.value[0]
+            } else {
+                points[i to j] = null
+            }
         }
     }
 
-    println("Fin")
-    println(answer)
-}
+    val limits =
+        xRange.map { it to minY } +
+                xRange.map { it to maxY } +
+                yRange.map { it to minX } +
+                yRange.map { it to maxX }
+    val infinite = limits.map { points[it] }
 
-private fun Char.toTime() = (toInt() - 'A'.toInt() + 61)
+    val filteredPoints = points.entries.groupBy { it.value }
+        .minus(null as Pair<Int, Int>?)
+        .filterNot { infinite.contains(it.key) }
+        .mapKeys { it.key!! }
+    val maxBy = filteredPoints
+        .maxBy { it.value.size }!!
+    val max = maxBy
+        .value.size
+
+    for (i in xRange) {
+        for (j in yRange) {
+            print("${filteredPoints[i to j]}".padEnd(15, ' '))
+        }
+        println()
+    }
+
+    println("fin")
+    println(maxBy)
+    println(max)
+}
