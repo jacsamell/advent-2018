@@ -2,8 +2,19 @@ import java.nio.file.Files
 import java.nio.file.Paths
 
 fun main(args: Array<String>) {
-    val chars = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data")).first().toMutableList()
+    val chars = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data")).first()
 
+    val ret = ('a'..'z').map {
+        println(it)
+        compute(chars.replace(it.toString(), "", true).toMutableList()).size
+    }
+        .minBy { it }
+
+    println("fin")
+    println(ret)
+}
+
+private fun compute(chars: MutableList<Char>): MutableList<Char> {
     while (true) {
         var last = '0'
         var reacted = false
@@ -17,13 +28,8 @@ fun main(args: Array<String>) {
             last = chars[i]
         }
 
-        if (!reacted) break
+        if (!reacted) return chars
     }
-
-    val ret = chars.fold("") { acc, c -> acc + c }
-
-    println("fin")
-    println(ret.length)
 }
 
 private fun Char.reactsWith(last: Char) = if (isUpperCase()) {
