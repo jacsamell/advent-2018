@@ -18,45 +18,19 @@ fun main(args: Array<String>) {
     val minX = coords.minBy { it.first }!!.first
     val minY = coords.minBy { it.second }!!.second
 
-    val points = mutableMapOf<Pair<Int, Int>, Pair<Int, Int>?>()
+    var answer = 0
 
     val xRange = minX..maxX
     val yRange = minY..maxY
     for (i in xRange) {
         for (j in yRange) {
-            val minDist = coords.groupBy { abs(it.first - i) + abs(it.second - j) }.minBy { it.key }!!
-            if (minDist.value.size == 1) {
-                points[i to j] = minDist.value[0]
-            } else {
-                points[i to j] = null
+            val total = coords.map { abs(it.first - i) + abs(it.second - j) }.reduce { acc, i -> acc + i }
+            if (total < 10000) {
+                answer++
             }
         }
     }
 
-    val limits =
-        xRange.map { it to minY } +
-                xRange.map { it to maxY } +
-                yRange.map { it to minX } +
-                yRange.map { it to maxX }
-    val infinite = limits.map { points[it] }
-
-    val filteredPoints = points.entries.groupBy { it.value }
-        .minus(null as Pair<Int, Int>?)
-        .filterNot { infinite.contains(it.key) }
-        .mapKeys { it.key!! }
-    val maxBy = filteredPoints
-        .maxBy { it.value.size }!!
-    val max = maxBy
-        .value.size
-
-    for (i in xRange) {
-        for (j in yRange) {
-            print("${filteredPoints[i to j]}".padEnd(15, ' '))
-        }
-        println()
-    }
-
     println("fin")
-    println(maxBy)
-    println(max)
+    println(answer)
 }
