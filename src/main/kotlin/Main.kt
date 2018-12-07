@@ -52,9 +52,9 @@ fun main(args: Array<String>) {
         }
     }
 
-    val (mostGuard, minutes) = map.entries.maxBy { it.value.map { it.value }.sum() }!!
+    val (mostGuard, value) = map.entries.flatMap { entry -> entry.value.map { entry.key to it } }.maxBy { it.second.value }!!
 
-    val (minute, _) = minutes.maxBy { it.value }!!
+    value.key.minute
 
     map.entries.forEach {
         println(it)
@@ -62,7 +62,7 @@ fun main(args: Array<String>) {
     }
 
     println("fin")
-    println("${minute.minute}")
+    println("${value.key.minute}")
     println("${mostGuard.guard}")
-    println("${minute.minute * mostGuard.guard}")
+    println("${value.key.minute * mostGuard.guard}")
 }
