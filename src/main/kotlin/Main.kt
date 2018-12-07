@@ -1,36 +1,68 @@
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.text.SimpleDateFormat
 import kotlin.math.abs
 
-val regex = """(\d+), (\d+)""".toRegex()
+//[1518-11-05 00:03] Guard #99 begins shift
+//[1518-11-05 00:45] falls asleep
+//[1518-11-05 00:55] wakes up
+val regex = """\[(.*)] (.*)""".toRegex()
+val regexGuard = """Guard #(\d+) begins shift""".toRegex()
+val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm")
+
+inline class Minute(val minute: Int)
+inline class Guard(val guard: Int)
 
 fun main(args: Array<String>) {
     val allLines = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data"))
 
-    val coords = allLines
+    val map = mutableMapOf<Guard, MutableMap<Minute, Int>>()
+    var lastMatch: MatchResult? = null
+
+    val sortedBy = allLines
         .map {
             val vals = regex.find(it)!!.groupValues
-            vals[1].toInt() to vals[2].toInt()
+            dateFormat.parse(vals[1]) to vals[2]
+        }
+        .sortedBy { it.first }
+
+    println(sortedBy.map { it.first to it.second + '\n' })
+
+    val iterator = sortedBy
+        .iterator()
+
+
+    var guard = Guard(-1)
+    while (iterator.hasNext()) {
+        val it = iterator.next()
+
+        val guardMatch = regexGuard.find(it.second)
+        if (guardMatch != null) {
+            guard = Guard(guardMatch.groupValues[1].toInt())
+            continue
         }
 
-    val maxX = coords.maxBy { it.first }!!.first
-    val maxY = coords.maxBy { it.second }!!.second
-    val minX = coords.minBy { it.first }!!.first
-    val minY = coords.minBy { it.second }!!.second
+        val start = Minute(it.first.minutes)
+        val end = Minute(iterator.next().first.minutes)
 
-    var answer = 0
+        val guardMins = map.getOrPut(guard) { mutableMapOf() }
 
-    val xRange = minX..maxX
-    val yRange = minY..maxY
-    for (i in xRange) {
-        for (j in yRange) {
-            val total = coords.map { abs(it.first - i) + abs(it.second - j) }.reduce { acc, i -> acc + i }
-            if (total < 10000) {
-                answer++
-            }
+        for (min in start.minute until end.minute) {
+            guardMins[Minute(min)] = guardMins.getOrDefault(Minute(min), 0) + 1
         }
     }
 
+    val (mostGuard, minutes) = map.entries.maxBy { it.value.map { it.value }.sum() }!!
+
+    val (minute, _) = minutes.maxBy { it.value }!!
+
+    map.entries.forEach {
+        println(it)
+        println(it.value.map { it.value }.sum())
+    }
+
     println("fin")
-    println(answer)
+    println("${minute.minute}")
+    println("${mostGuard.guard}")
+    println("${minute.minute * mostGuard.guard}")
 }
