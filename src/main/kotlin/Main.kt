@@ -1,39 +1,43 @@
+import java.lang.RuntimeException
 import java.nio.file.Files
 import java.nio.file.Paths
 
 fun main(args: Array<String>) {
-    val chars = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data")).first()
+    val input = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data")).single()
 
-    val ret = ('a'..'z').map {
-        println(it)
-        compute(chars.replace(it.toString(), "", true).toMutableList()).size
-    }
-        .minBy { it }
+    val nums = input.split(' ')
+        .map { it.toInt() }
+        .iterator()
+
+    val root = readNode(nums)
+
+    if (nums.hasNext()) throw RuntimeException("Not read all data")
+
+    val ret = calculate(root)
 
     println("fin")
     println(ret)
 }
 
-private fun compute(chars: MutableList<Char>): MutableList<Char> {
-    while (true) {
-        var last = '0'
-        var reacted = false
-        for (i in 0 until chars.size) {
-            if (chars[i].reactsWith(last)) {
-                chars.removeAt(i)
-                chars.removeAt(i - 1)
-                reacted = true
-                break
-            }
-            last = chars[i]
-        }
+private fun calculate(node: Node): Int {
+    return node.metas.sum() + node.children.map { calculate(it) }.sum()
+}
 
-        if (!reacted) return chars
+private fun readNode(nums: Iterator<Int>): Node {
+    val childCount = nums.next()
+    val metaCount = nums.next()
+
+    val children = mutableListOf<Node>()
+    for (i in 0 until childCount) {
+        children.add(readNode(nums))
     }
+
+    val meta = mutableListOf<Int>()
+    for (i in 0 until metaCount) {
+        meta.add(nums.next())
+    }
+
+    return Node(meta, children)
 }
 
-private fun Char.reactsWith(last: Char) = if (isUpperCase()) {
-    last.isLowerCase() && equals(last.toUpperCase())
-} else {
-    last.isUpperCase() && equals(last.toLowerCase())
-}
+private data class Node(val metas: List<Int>, val children: List<Node>)
