@@ -1,26 +1,22 @@
-import java.lang.RuntimeException
 import java.nio.file.Files
 import java.nio.file.Paths
 
 fun main(args: Array<String>) {
     val input = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data")).single()
 
-    val nums = input.split(' ')
-        .map { it.toInt() }
-        .iterator()
+    val nums = input.split(' ').map { it.toInt() }.iterator()
 
     val root = readNode(nums)
 
-    if (nums.hasNext()) throw RuntimeException("Not read all data")
+    val result = calculate(root)
 
-    val ret = calculate(root)
-
-    println("fin")
-    println(ret)
+    println(result)
 }
 
-private fun calculate(node: Node): Int {
-    return node.metas.sum() + node.children.map { calculate(it) }.sum()
+private fun calculate(node: Node): Int = if (node.children.isEmpty()) {
+    node.metas.sum()
+} else {
+    node.metas.map { i -> node.children.getOrNull(i - 1) }.filterNotNull().sumBy { calculate(it) }
 }
 
 private fun readNode(nums: Iterator<Int>): Node {
