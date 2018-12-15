@@ -11,6 +11,8 @@ repositories {
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    compile group: 'org.apache.commons', name: 'commons-collections4', version: '4.2'
+
 }
 
 compileKotlin {

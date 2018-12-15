@@ -1,39 +1,36 @@
-import java.nio.file.Files
-import java.nio.file.Paths
+import org.apache.commons.collections4.list.TreeList
 
 fun main(args: Array<String>) {
-    val input = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data")).single()
-
-    val nums = input.split(' ').map { it.toInt() }.iterator()
-
-    val root = readNode(nums)
-
-    val result = calculate(root)
-
-    println(result)
+    run(459, 71798)
+    run(459, 7179800)
 }
 
-private fun calculate(node: Node): Int = if (node.children.isEmpty()) {
-    node.metas.sum()
-} else {
-    node.metas.map { i -> node.children.getOrNull(i - 1) }.filterNotNull().sumBy { calculate(it) }
-}
+private fun run(players: Int, max: Int) {
+    val marbles = TreeList<Int>().apply { add(0) }
+    var index = 0
+    var player = 0
+    val scores = mutableMapOf<Int, Long>()
 
-private fun readNode(nums: Iterator<Int>): Node {
-    val childCount = nums.next()
-    val metaCount = nums.next()
+    for (i in 1..max) {
+        if (i % 23 == 0) {
+            var score = scores.getOrDefault(player, 0)
+            score += i
+            index = index(index - 7, marbles.size)
+            score += marbles.removeAt(index)
+            scores.put(player, score)
+        } else {
+            index = index(index + 2, marbles.size)
 
-    val children = mutableListOf<Node>()
-    for (i in 0 until childCount) {
-        children.add(readNode(nums))
+            marbles.add(index, i)
+        }
+        player = index(player + 1, players)
     }
 
-    val meta = mutableListOf<Int>()
-    for (i in 0 until metaCount) {
-        meta.add(nums.next())
-    }
-
-    return Node(meta, children)
+    //println(scores)
+    //println(scores.entries.maxBy { it.value })
+    println(scores.values.max())
 }
 
-private data class Node(val metas: List<Int>, val children: List<Node>)
+private fun index(index: Int, max: Int): Int {
+    return if (index >= max) index - max else if (index < 0) index + max else index
+}
