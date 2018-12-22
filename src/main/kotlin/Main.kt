@@ -20,19 +20,30 @@ fun main(args: Array<String>) {
     val carts =
         allLines.withIndex().flatMap { regex.findAll(it.value).asIterable().map { result -> it to result } }.map {
             Cart(it.second.range.start, it.first.index, getDir(it.second.value))
-        }
+        }.toMutableList()
 
     while (true) {
-        //print(allLines, carts)
+        //print(map, carts)
+        println(carts.size)
+        if (carts.size == 1) {
+            val single = carts.single()
+            println(single.x)
+            println(single.y)
+            return
+        }
 
-
-        carts.sortedBy { it.y*1000000 + it.x }.forEach {
+        carts.sortedBy { it.y * 1000000 + it.x }.forEach {
             move(map, it)
-            val collision = carts.find { carts.find { it1 -> it1.x == it.x && it1.y == it.y && it != it1 } != null }
+
+            var other: Cart? = null
+            val collision = carts.find {
+                other = carts.find { it1 -> it1.x == it.x && it1.y == it.y && it != it1 }
+                other != null
+            }
 
             if (collision != null) {
-                println("${collision.x} ${collision.y}")
-                return
+                carts.remove(collision)
+                carts.remove(other!!)
             }
         }
     }
