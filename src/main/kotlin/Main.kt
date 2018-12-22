@@ -1,36 +1,59 @@
-import org.apache.commons.collections4.list.TreeList
+import java.awt.Component
+import java.awt.Graphics
+import java.awt.Rectangle
+import java.nio.file.Files
+import java.nio.file.Paths
+import javax.swing.JFrame
+
+//position=<-21751,  11136> velocity=< 2, -1>
+val regex = """position=< ?(-?\d+),  ?(-?\d+)> velocity=< ?(-?\d+),  ?(-?\d+)>""".toRegex()
+
+var scale = 10
+
+var i = 0
 
 fun main(args: Array<String>) {
-    run(459, 71798)
-    run(459, 7179800)
-}
+    val allLines = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data"))
 
-private fun run(players: Int, max: Int) {
-    val marbles = TreeList<Int>().apply { add(0) }
-    var index = 0
-    var player = 0
-    val scores = mutableMapOf<Int, Long>()
 
-    for (i in 1..max) {
-        if (i % 23 == 0) {
-            var score = scores.getOrDefault(player, 0)
-            score += i
-            index = index(index - 7, marbles.size)
-            score += marbles.removeAt(index)
-            scores.put(player, score)
-        } else {
-            index = index(index + 2, marbles.size)
-
-            marbles.add(index, i)
-        }
-        player = index(player + 1, players)
+    val points = allLines.map {
+        val result = regex.find(it)!!.groupValues
+        Point(result[1].toInt(), result[2].toInt(), result[3].toInt(), result[4].toInt())
     }
 
-    //println(scores)
-    //println(scores.entries.maxBy { it.value })
-    println(scores.values.max())
+    val frame = object : JFrame() {
+        override fun paint(g: Graphics) {
+            g.clearRect(0,0,2000,2000)
+
+            points.forEach { it.paint(g) }
+        }
+    }
+
+    frame.setSize(2000, 2000)
+    frame.isVisible = true
+
+    while (true) {
+        println("Hit enter")
+
+        frame.repaint()
+
+        points.forEach {
+            it.increment()
+        }
+        i++
+        println(i)
+
+        Thread.sleep(1)
+    }
 }
 
-private fun index(index: Int, max: Int): Int {
-    return if (index >= max) index - max else if (index < 0) index + max else index
+data class Point(var posX: Int, var posY: Int, var vX: Int, var vY: Int) {
+    fun increment() {
+        posX += vX
+        posY += vY
+    }
+
+    fun paint(g: Graphics) {
+        g.fillRect((posX * 5).toInt(), (posY * 5).toInt(), 10, 10)
+    }
 }
