@@ -1,148 +1,33 @@
-import Direction.*
-import java.lang.RuntimeException
-import java.nio.file.Files
-import java.nio.file.Paths
-import kotlin.random.Random
-
 val regex = """[<>^v]""".toRegex()
 
+private val count = 165061
+
 fun main(args: Array<String>) {
-    var allLines = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data"))
 
+    val list = mutableListOf(3, 7)
 
-    val map = allLines.map {
-        it.replace('<', '-')
-            .replace('>', '-')
-            .replace('^', '|')
-            .replace('v', '|')
-    }
+    var elf1 = 0
+    var elf2 = 1
 
-    val carts =
-        allLines.withIndex().flatMap { regex.findAll(it.value).asIterable().map { result -> it to result } }.map {
-            Cart(it.second.range.start, it.first.index, getDir(it.second.value))
-        }.toMutableList()
-
-    while (true) {
-        //print(map, carts)
-        println(carts.size)
-        if (carts.size == 1) {
-            val single = carts.single()
-            println(single.x)
-            println(single.y)
-            return
+    while (list.size < count + 10) {
+        val sum = list[elf1] + list[elf2]
+        if (sum > 9) {
+            val digit = sum / 10
+            list.add(digit)
+            list.add(sum - digit * 10)
+        } else {
+            list.add(sum)
         }
 
-        carts.sortedBy { it.y * 1000000 + it.x }.forEach {
-            move(map, it)
+        elf1 += list[elf1]+1
+        elf2 += list[elf2]+1
 
-            var other: Cart? = null
-            val collision = carts.find {
-                other = carts.find { it1 -> it1.x == it.x && it1.y == it.y && it != it1 }
-                other != null
-            }
+        while (elf1 >= list.size) elf1 -= list.size
+        while (elf2 >= list.size) elf2 -= list.size
 
-            if (collision != null) {
-                carts.remove(collision)
-                carts.remove(other!!)
-            }
-        }
-    }
-}
-
-private fun print(allLines: List<String>, carts: List<Cart>) {
-    val allLinesCopy = allLines.toMutableList()
-    carts.forEach {
-        allLinesCopy[it.y] = allLinesCopy[it.y].replaceRange(
-            IntRange(it.x, it.x), when (it.direction) {
-                UP -> "^"
-                DOWN -> "v"
-                LEFT -> "<"
-                RIGHT -> ">"
-            }
-        )
-    }
-    allLinesCopy.forEachIndexed { index, it ->
-        it.forEach { print(it) }
-        println(index)
-    }
-}
-
-private fun move(allLines: List<String>, it: Cart) {
-    val direction = it.direction
-    val x = it.x + when (direction) {
-        LEFT -> -1
-        RIGHT -> 1
-        else -> 0
+        //println(list)
     }
 
-    val y = it.y + when (direction) {
-        DOWN -> 1
-        UP -> -1
-        else -> 0
-    }
-
-    val next = allLines[y][x]
-    val newDir = when (next) {
-        '\\' -> when (direction) {
-            UP -> LEFT
-            DOWN -> RIGHT
-            LEFT -> UP
-            RIGHT -> DOWN
-        }
-        '/' -> when (direction) {
-            UP -> RIGHT
-            DOWN -> LEFT
-            LEFT -> DOWN
-            RIGHT -> UP
-        }
-        '+' -> {
-            when (it.nextDir()) {
-                UP -> direction
-                LEFT -> when (direction) {
-                    UP -> LEFT
-                    LEFT -> DOWN
-                    DOWN -> RIGHT
-                    RIGHT -> UP
-                }
-                RIGHT -> when (direction) {
-                    UP -> RIGHT
-                    LEFT -> UP
-                    DOWN -> LEFT
-                    RIGHT -> DOWN
-                }
-                DOWN -> throw RuntimeException()
-            }
-        }
-        '-', '|' -> direction
-        else -> throw RuntimeException("$next")
-    }
-
-    it.x = x
-    it.y = y
-    it.direction = newDir
-}
-
-fun getDir(value: String): Direction {
-    return when (value.toCharArray().single()) {
-        '<' -> LEFT
-        '>' -> RIGHT
-        '^' -> UP
-        'v' -> DOWN
-        else -> throw RuntimeException()
-    }
-}
-
-data class Cart(var x: Int, var y: Int, var direction: Direction, var lastDir: Direction = DOWN) {
-    fun nextDir(): Direction {
-        lastDir = when (lastDir) {
-            DOWN, RIGHT -> LEFT
-            LEFT -> UP
-            UP -> RIGHT
-        }
-        return lastDir
-    }
-}
-
-enum class Direction {
-    UP, DOWN, LEFT, RIGHT
+    for (i in count..count + 9)
+        print(list[i])
 }
