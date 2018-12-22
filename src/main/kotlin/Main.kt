@@ -1,59 +1,36 @@
-import java.awt.Component
-import java.awt.Graphics
-import java.awt.Rectangle
-import java.nio.file.Files
-import java.nio.file.Paths
-import javax.swing.JFrame
+import kotlin.math.absoluteValue
 
-//position=<-21751,  11136> velocity=< 2, -1>
-val regex = """position=< ?(-?\d+),  ?(-?\d+)> velocity=< ?(-?\d+),  ?(-?\d+)>""".toRegex()
-
-var scale = 10
-
-var i = 0
+val serial = 3031
 
 fun main(args: Array<String>) {
-    val allLines = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data"))
-
-
-    val points = allLines.map {
-        val result = regex.find(it)!!.groupValues
-        Point(result[1].toInt(), result[2].toInt(), result[3].toInt(), result[4].toInt())
-    }
-
-    val frame = object : JFrame() {
-        override fun paint(g: Graphics) {
-            g.clearRect(0,0,2000,2000)
-
-            points.forEach { it.paint(g) }
+    val cells = Array(301) { x ->
+        IntArray(301) { y ->
+            val rack = x + 10
+            val digits = (rack * y + serial) * rack
+            val string = digits.toString()
+            string.getOrElse(string.length - 3) { '0' }.toString().toInt() - 5
         }
     }
 
-    frame.setSize(2000, 2000)
-    frame.isVisible = true
+    val max = cells.mapIndexed { x, a ->
+        a.mapIndexed { y, it ->
+            try {
+                it +
+                        cells[x - 1][y - 1] +
+                        cells[x - 1][y] +
+                        cells[x - 1][y + 1] +
+                        cells[x][y - 1] +
+                        cells[x][y + 1] +
+                        cells[x + 1][y - 1] +
+                        cells[x + 1][y] +
+                        cells[x + 1][y + 1]
+            } catch (e: ArrayIndexOutOfBoundsException) {
+                0
+            }
+        }.withIndex()
+    }.withIndex().maxBy { it.value.maxBy { it.value }!!.value }!!
 
-    while (true) {
-        println("Hit enter")
-
-        frame.repaint()
-
-        points.forEach {
-            it.increment()
-        }
-        i++
-        println(i)
-
-        Thread.sleep(1)
-    }
-}
-
-data class Point(var posX: Int, var posY: Int, var vX: Int, var vY: Int) {
-    fun increment() {
-        posX += vX
-        posY += vY
-    }
-
-    fun paint(g: Graphics) {
-        g.fillRect((posX * 5).toInt(), (posY * 5).toInt(), 10, 10)
-    }
+    //println(cells.map { it.map { it.absoluteValue } + "\n" })
+    println(max.index)
+    println(max.value.maxBy { it.value }!!.index)
 }
