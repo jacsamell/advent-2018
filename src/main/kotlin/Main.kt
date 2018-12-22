@@ -1,6 +1,8 @@
 val regex = """[<>^v]""".toRegex()
 
-private val count = 165061
+private val target = "165061"
+
+private val digits = target.length
 
 fun main(args: Array<String>) {
 
@@ -9,25 +11,34 @@ fun main(args: Array<String>) {
     var elf1 = 0
     var elf2 = 1
 
-    while (list.size < count + 10) {
+    while (true) {
         val sum = list[elf1] + list[elf2]
         if (sum > 9) {
-            val digit = sum / 10
-            list.add(digit)
-            list.add(sum - digit * 10)
+            list.add(1)
+            list.add(sum - 10)
         } else {
             list.add(sum)
         }
 
-        elf1 += list[elf1]+1
-        elf2 += list[elf2]+1
+        elf1 += list[elf1] + 1
+        elf2 += list[elf2] + 1
 
         while (elf1 >= list.size) elf1 -= list.size
         while (elf2 >= list.size) elf2 -= list.size
 
-        //println(list)
-    }
+        val size = list.size
+        if (size > digits) {
+            for (s in size - 1..size) {
+                var last = ""
+                for (i in s - digits until s) {
+                    last += list[i]
+                }
 
-    for (i in count..count + 9)
-        print(list[i])
+                if (last == target) {
+                    println(s - digits)
+                    return
+                }
+            }
+        }
+    }
 }
