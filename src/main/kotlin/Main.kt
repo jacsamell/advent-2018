@@ -4,17 +4,37 @@ import java.nio.file.Paths
 
 val regex = """[<>^v]""".toRegex()
 
-val allLines = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data")).map { it.toCharArray() }
+lateinit var allLines: List<CharArray>
 
-var units = mutableListOf<Unit>()
+lateinit var units: MutableList<Unit>
+
+var elfCount: Int = -1
+
 
 fun main(args: Array<String>) {
+    var i=3
+    while (true) {
+        allLines = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data")).map { it.toCharArray() }
+        units = mutableListOf()
 
+        val final = run(i)
+
+        println("$final of $elfCount with $i")
+        println()
+
+        if (final == elfCount)
+            return
+
+        i++
+    }
+}
+
+private fun run(elfAttack: Int): Int {
     allLines.forEachIndexed { y, s ->
         s.forEachIndexed { x, c ->
             val unit = when (c) {
-                'G' -> Unit(x, y, 'G')
-                'E' -> Unit(x, y, 'E')
+                'G' -> Unit(x, y, 'G', 3)
+                'E' -> Unit(x, y, 'E', elfAttack)
                 else -> null
             }
 
@@ -23,6 +43,9 @@ fun main(args: Array<String>) {
             }
         }
     }
+
+    if (elfCount == -1)
+        elfCount = units.filter { it.type == 'E' }.size
 
     var rounds = 0
 
@@ -51,6 +74,8 @@ fun main(args: Array<String>) {
     val sum = units.map { it.health }.sum()
     println(sum)
     println(sum * rounds)
+
+    return units.filter { it.type == 'E' }.size
 }
 
 private fun print() {
@@ -144,4 +169,4 @@ private fun Char.other(): Char {
     throw RuntimeException()
 }
 
-data class Unit(var x: Int, var y: Int, var type: Char, var health: Int = 200, var attack: Int = 3)
+data class Unit(var x: Int, var y: Int, var type: Char, var attack: Int, var health: Int = 200)
