@@ -59,21 +59,17 @@ private fun print() {
 
 fun turn(unit: Unit) {
     if (!canAttack(unit)) {
-        val enemies = units.filter { it.type == unit.type.other() }
-        var where = enemies.map { it.x to it.y }.toMutableSet()
+        val enemies = units.filter { it.type == unit.type.other() }.map { it.x to it.y }
 
-        var closest = listOf<Pair<Int, Int>>()
-        val used = mutableSetOf<Pair<Int, Int>>()
-        while (closest.isEmpty() && where.isNotEmpty()) {
-            where = where.flatMap { adjacent(it.first, it.second).filter { it.second == '.' }.map { it.first } }
-                .toMutableSet()
-            where.removeAll(used)
-            closest = where.filter { adjacent(unit).any { it1 -> it1.first == it } }
-            used.addAll(where)
-        }
+        val closestEnemies = getClosest(unit.x to unit.y, enemies)
 
-        val moveTo = closest.sortedBy { 1000000 * it.second + it.first }.firstOrNull()
-        if (moveTo != null) {
+        val enemyLocation = closestEnemies.sortedBy { 1000000 * it.second + it.first }.firstOrNull()
+
+        if (enemyLocation != null) {
+            val shortestPathSteps = getClosest(enemyLocation, listOf(unit.x to unit.y))
+            val moveTo = shortestPathSteps
+                .sortedBy { 1000000 * it.second + it.first }.first()
+
             allLines[unit.y][unit.x] = '.'
 
             unit.x = moveTo.first
@@ -97,6 +93,25 @@ fun turn(unit: Unit) {
             allLines[enemy.y][enemy.x] = '.'
         }
     }
+}
+
+private fun getClosest(
+    start: Pair<Int, Int>,
+    end: List<Pair<Int, Int>>
+): List<Pair<Int, Int>> {
+    var where = mutableSetOf(start)
+    val endUp = end.flatMap { adjacent(it.first, it.second) }.filter { it.second == '.' }.map { it.first }
+
+    var closest = listOf<Pair<Int, Int>>()
+    val used = mutableSetOf<Pair<Int, Int>>()
+    while (closest.isEmpty() && where.isNotEmpty()) {
+        closest = where.filter { point -> endUp.any { it == point } }
+        used.addAll(where)
+        where = where.flatMap { adjacent(it.first, it.second).filter { it.second == '.' }.map { it.first } }
+            .toMutableSet()
+        where.removeAll(used)
+    }
+    return closest
 }
 
 val targetSelector = Comparator<Unit> { first, second ->
