@@ -2,171 +2,107 @@ import java.lang.RuntimeException
 import java.nio.file.Files
 import java.nio.file.Paths
 
-val regex = """[<>^v]""".toRegex()
+/*
+Before: [2, 3, 2, 2]
+15 3 2 2
+After:  [2, 3, 4, 2]
+ */
 
-lateinit var allLines: List<CharArray>
+val regexBefore = """Before: \[(\d), (\d), (\d), (\d)]""".toRegex()
+val regexOp = """(\d) (\d) (\d) (\d)""".toRegex()
+val regexAfter = """After:  \[(\d), (\d), (\d), (\d)]""".toRegex()
 
-lateinit var units: MutableList<Unit>
+lateinit var tests: List<Test>
 
-var elfCount: Int = -1
+data class Test(val before: Map<Int, Register>, val op: Operation, val after: Map<Int, Register>)
 
+data class Operation(val op: Int, val a: Int, val b: Int, val reg: Int)
 
 fun main(args: Array<String>) {
-    var i=3
-    while (true) {
-        allLines = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data")).map { it.toCharArray() }
-        units = mutableListOf()
+    tests = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data"))
+        .filter { it.isNotBlank() }
+        .chunked(3)
+        .map {
+            val before = regexBefore.find(it[0])!!.groupValues.drop(1).map { it.toInt() }
+                .mapIndexed { index, it -> index to Register(it) }.toMap()
+            val op = regexOp.find(it[1])!!.groupValues.drop(1).map { it.toInt() }
+            val after = regexAfter.find(it[2])!!.groupValues.drop(1).map { it.toInt() }
+                .mapIndexed { index, it -> index to Register(it) }.toMap()
 
-        val final = run(i)
+            Test(before, Operation(op[0], op[1], op[2], op[3]), after)
+        }
 
-        println("$final of $elfCount with $i")
-        println()
+    var over3 = 0
 
-        if (final == elfCount)
-            return
+    tests.forEachIndexed { index, test ->
+        var count = 0
 
-        i++
-    }
-}
-
-private fun run(elfAttack: Int): Int {
-    allLines.forEachIndexed { y, s ->
-        s.forEachIndexed { x, c ->
-            val unit = when (c) {
-                'G' -> Unit(x, y, 'G', 3)
-                'E' -> Unit(x, y, 'E', elfAttack)
-                else -> null
-            }
-
-            if (unit != null) {
-                units.add(unit)
+        allOps.forEach { op ->
+            registers = test.before.mapValues { it.value.copy() }.toMutableMap()
+            operate(op, test.op.a, test.op.b, register(test.op.reg))
+            if (registers == test.after) {
+                //println(op)
+                count++
             }
         }
+
+        println("$index:$count")
+
+        if (count >= 3) over3++
     }
 
-    if (elfCount == -1)
-        elfCount = units.filter { it.type == 'E' }.size
-
-    var rounds = 0
-
-    mainLoop@ while (true) {
-        print()
-
-        units = units.sortedBy { 1000000 * it.y + it.x }.toMutableList()
-
-        var i = 0
-        while (i < units.size) {
-            val unit = units[i]
-            val enemies = units.filter { it.type == unit.type.other() }
-
-            if (enemies.isEmpty()) break@mainLoop
-            turn(unit)
-
-            i = units.indexOf(unit) + 1
-        }
-
-        rounds++
-    }
-
-    print()
-
-    println(rounds)
-    val sum = units.map { it.health }.sum()
-    println(sum)
-    println(sum * rounds)
-
-    return units.filter { it.type == 'E' }.size
+    println(over3)
 }
 
-private fun print() {
-    allLines.forEach { println(it.fold("") { acc, c -> acc + c }) }
+fun register(code: Int): Register {
+    return registers[code]!!
 }
 
-fun turn(unit: Unit) {
-    if (!canAttack(unit)) {
-        val enemies = units.filter { it.type == unit.type.other() }.map { it.x to it.y }
+fun reg(code: Int): Int {
+    return registers[code]!!.vaule
+}
 
-        val closestEnemies = getClosest(unit.x to unit.y, enemies)
+var registers: MutableMap<Int, Register> = mutableMapOf()
 
-        val enemyLocation = closestEnemies.sortedBy { 1000000 * it.second + it.first }.firstOrNull()
-
-        if (enemyLocation != null) {
-            val shortestPathSteps = getClosest(enemyLocation, listOf(unit.x to unit.y))
-            val moveTo = shortestPathSteps
-                .sortedBy { 1000000 * it.second + it.first }.first()
-
-            allLines[unit.y][unit.x] = '.'
-
-            unit.x = moveTo.first
-            unit.y = moveTo.second
-
-            allLines[unit.y][unit.x] = unit.type
-
-            print()
-        }
-    }
-
-    val inRange = adjacent(unit.x, unit.y)
-        .filter { it.second == unit.type.other() }
-        .map { units.find { unit1 -> unit1.x to unit1.y == it.first }!! }
-
-    if (inRange.isNotEmpty()) {
-        val enemy = inRange.minWith(targetSelector)!!
-        enemy.health -= unit.attack
-        if (enemy.health <= 0) {
-            units.remove(enemy)
-            allLines[enemy.y][enemy.x] = '.'
-        }
+fun operate(op: String, valueA: Int, valueB: Int, reg: Register) {
+    reg.vaule = when (op) {
+        "addr" -> reg(valueA) + reg(valueB)
+        "addi" -> reg(valueA) + valueB
+        "mulr" -> reg(valueA) * reg(valueB)
+        "muli" -> reg(valueA) * valueB
+        "banr" -> reg(valueA) and reg(valueB)
+        "bani" -> reg(valueA) and valueB
+        "borr" -> reg(valueA) or reg(valueB)
+        "bori" -> reg(valueA) or valueB
+        "setr" -> reg(valueA)
+        "seti" -> valueA
+        "gtir" -> if (valueA > reg(valueB)) 1 else 0
+        "gtri" -> if (reg(valueA) > valueB) 1 else 0
+        "gtrr" -> if (reg(valueA) > reg(valueB)) 1 else 0
+        "eqir" -> if (valueA == reg(valueB)) 1 else 0
+        "eqri" -> if (reg(valueA) == valueB) 1 else 0
+        "eqrr" -> if (reg(valueA) == reg(valueB)) 1 else 0
+        else -> throw RuntimeException()
     }
 }
 
-private fun getClosest(
-    start: Pair<Int, Int>,
-    end: List<Pair<Int, Int>>
-): List<Pair<Int, Int>> {
-    var where = mutableSetOf(start)
-    val endUp = end.flatMap { adjacent(it.first, it.second) }.filter { it.second == '.' }.map { it.first }
+val allOps = arrayOf(
+    "addr",
+    "addi",
+    "mulr",
+    "muli",
+    "banr",
+    "bani",
+    "borr",
+    "bori",
+    "setr",
+    "seti",
+    "gtir",
+    "gtri",
+    "gtrr",
+    "eqir",
+    "eqri",
+    "eqrr"
+)
 
-    var closest = listOf<Pair<Int, Int>>()
-    val used = mutableSetOf<Pair<Int, Int>>()
-    while (closest.isEmpty() && where.isNotEmpty()) {
-        closest = where.filter { point -> endUp.any { it == point } }
-        used.addAll(where)
-        where = where.flatMap { adjacent(it.first, it.second).filter { it.second == '.' }.map { it.first } }
-            .toMutableSet()
-        where.removeAll(used)
-    }
-    return closest
-}
-
-val targetSelector = Comparator<Unit> { first, second ->
-    val health = first.health - second.health
-    if (health != 0) return@Comparator health
-
-    val y = first.y - second.y
-    if (y != 0) return@Comparator y
-
-    first.x - second.x
-}
-
-fun adjacent(unit: Unit) = adjacent(unit.x, unit.y)
-
-private fun canAttack(unit: Unit): Boolean {
-    return adjacent(unit.x, unit.y).any { it.second == unit.type.other() }
-}
-
-private fun adjacent(x: Int, y: Int): List<Pair<Pair<Int, Int>, Char>> {
-    return listOf(
-        x to y - 1, x - 1 to y, x + 1 to y, x to y + 1
-    ).map { it to allLines[it.second][it.first] }
-}
-
-private fun Char.other(): Char {
-    when (this) {
-        'G' -> return 'E'
-        'E' -> return 'G'
-    }
-    throw RuntimeException()
-}
-
-data class Unit(var x: Int, var y: Int, var type: Char, var attack: Int, var health: Int = 200)
+data class Register(var vaule: Int)
