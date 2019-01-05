@@ -9,7 +9,7 @@ After:  [2, 3, 4, 2]
  */
 
 val regexBefore = """Before: \[(\d), (\d), (\d), (\d)]""".toRegex()
-val regexOp = """(\d) (\d) (\d) (\d)""".toRegex()
+val regexOp = """(\d+) (\d) (\d) (\d)""".toRegex()
 val regexAfter = """After:  \[(\d), (\d), (\d), (\d)]""".toRegex()
 
 lateinit var tests: List<Test>
@@ -19,40 +19,71 @@ data class Test(val before: Map<Int, Register>, val op: Operation, val after: Ma
 data class Operation(val op: Int, val a: Int, val b: Int, val reg: Int)
 
 fun main(args: Array<String>) {
-    tests = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data"))
+    val lines = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data"))
+
+    val split = lines.indexOf("********************")
+    val chunked = lines.chunked(split)
+    val testLines = chunked[0]
+    val programLines = chunked[1].drop(1)
+
+    tests = testLines
         .filter { it.isNotBlank() }
         .chunked(3)
         .map {
-            val before = regexBefore.find(it[0])!!.groupValues.drop(1).map { it.toInt() }
+            val before = regexBefore.matchEntire(it[0])!!.groupValues.drop(1).map { it.toInt() }
                 .mapIndexed { index, it -> index to Register(it) }.toMap()
-            val op = regexOp.find(it[1])!!.groupValues.drop(1).map { it.toInt() }
-            val after = regexAfter.find(it[2])!!.groupValues.drop(1).map { it.toInt() }
+            val op = regexOp.matchEntire(it[1])!!.groupValues.drop(1).map { it.toInt() }
+            val after = regexAfter.matchEntire(it[2])!!.groupValues.drop(1).map { it.toInt() }
                 .mapIndexed { index, it -> index to Register(it) }.toMap()
 
             Test(before, Operation(op[0], op[1], op[2], op[3]), after)
         }
 
-    var over3 = 0
+    while (!opMap.values.containsAll(allOps)) {
+        testAll()
+    }
 
-    tests.forEachIndexed { index, test ->
-        var count = 0
+    println(opMap)
 
-        allOps.forEach { op ->
+    registers = mutableMapOf(
+        0 to Register(0),
+        1 to Register(0),
+        2 to Register(0),
+        3 to Register(0)
+    )
+
+    programLines.map { it.split(" ").map { it.toInt() } }
+        .forEach { operate(opMap[it[0]]!!, it[1], it[2], register(it[3])) }
+
+    println(reg(0))
+}
+
+private fun testAll() {
+    val tests = tests.filter { !opMap.containsKey(it.op.op) }
+    tests@ for (test in tests) {
+        var opStr: String? = null
+
+        val allOps = allOps.filter { !opMap.containsValue(it) }
+        for (op in allOps) {
             registers = test.before.mapValues { it.value.copy() }.toMutableMap()
             operate(op, test.op.a, test.op.b, register(test.op.reg))
             if (registers == test.after) {
                 //println(op)
-                count++
+                if (opStr == null) {
+                    opStr = op
+                } else {
+                    continue@tests
+                }
             }
         }
 
-        println("$index:$count")
-
-        if (count >= 3) over3++
+        if (opStr != null) {
+            opMap[test.op.op] = opStr
+        }
     }
-
-    println(over3)
 }
+
+val opMap = mutableMapOf<Int, String>()
 
 fun register(code: Int): Register {
     return registers[code]!!
@@ -86,7 +117,7 @@ fun operate(op: String, valueA: Int, valueB: Int, reg: Register) {
     }
 }
 
-val allOps = arrayOf(
+val allOps = listOf(
     "addr",
     "addi",
     "mulr",
