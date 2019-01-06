@@ -1,139 +1,125 @@
-import java.lang.RuntimeException
 import java.nio.file.Files
 import java.nio.file.Paths
 
-/*
-Before: [2, 3, 2, 2]
-15 3 2 2
-After:  [2, 3, 4, 2]
- */
+// y=1595, x=454..478
 
-val regexBefore = """Before: \[(\d), (\d), (\d), (\d)]""".toRegex()
-val regexOp = """(\d+) (\d) (\d) (\d)""".toRegex()
-val regexAfter = """After:  \[(\d), (\d), (\d), (\d)]""".toRegex()
-
-lateinit var tests: List<Test>
-
-data class Test(val before: Map<Int, Register>, val op: Operation, val after: Map<Int, Register>)
-
-data class Operation(val op: Int, val a: Int, val b: Int, val reg: Int)
+val regexX = """x=(\d+(?:\.\.\d+)?)""".toRegex()
+val regexY = """y=(\d+(?:\.\.\d+)?)""".toRegex()
 
 fun main(args: Array<String>) {
     val lines = Files.readAllLines(Paths.get("/home/jacob/dev/advent/src/main/kotlin/Data"))
 
-    val split = lines.indexOf("********************")
-    val chunked = lines.chunked(split)
-    val testLines = chunked[0]
-    val programLines = chunked[1].drop(1)
+    val grid = lines.flatMap {
+        val x = regexX.find(it)!!.groupValues[1]
+        val y = regexY.find(it)!!.groupValues[1]
 
-    tests = testLines
-        .filter { it.isNotBlank() }
-        .chunked(3)
-        .map {
-            val before = regexBefore.matchEntire(it[0])!!.groupValues.drop(1).map { it.toInt() }
-                .mapIndexed { index, it -> index to Register(it) }.toMap()
-            val op = regexOp.matchEntire(it[1])!!.groupValues.drop(1).map { it.toInt() }
-            val after = regexAfter.matchEntire(it[2])!!.groupValues.drop(1).map { it.toInt() }
-                .mapIndexed { index, it -> index to Register(it) }.toMap()
-
-            Test(before, Operation(op[0], op[1], op[2], op[3]), after)
+        if (x.contains("..")) {
+            val range = x.split("..").map { it.toInt() }
+            return@flatMap IntRange(range[0], range[1]).map { it to y.toInt() }
+        } else {
+            val range = y.split("..").map { it.toInt() }
+            return@flatMap IntRange(range[0], range[1]).map { x.toInt() to it }
         }
+    }.map { it to "#" }.toMap().toMutableMap()
 
-    while (!opMap.values.containsAll(allOps)) {
-        testAll()
-    }
+    val minX = grid.keys.minBy { it.first }!!.first
+    val maxX = grid.keys.maxBy { it.first }!!.first
+    val minY = grid.keys.minBy { it.second }!!.second
+    val maxY = grid.keys.maxBy { it.second }!!.second
 
-    println(opMap)
+    print(minY, maxY, minX, maxX, grid)
 
-    registers = mutableMapOf(
-        0 to Register(0),
-        1 to Register(0),
-        2 to Register(0),
-        3 to Register(0)
-    )
+    var water = mutableListOf<Pair<Int, Int>>()
+    var counter = 0
+    while (true) {
+        val oldWater = water.apply { add(500 to 0) }
+        water = mutableListOf()
 
-    programLines.map { it.split(" ").map { it.toInt() } }
-        .forEach { operate(opMap[it[0]]!!, it[1], it[2], register(it[3])) }
+        val oldGrid = grid.toMap()
 
-    println(reg(0))
-}
+        oldWater.forEach {
+            val x = it.first
+            val y = it.second
 
-private fun testAll() {
-    val tests = tests.filter { !opMap.containsKey(it.op.op) }
-    tests@ for (test in tests) {
-        var opStr: String? = null
+            grid.remove(x to y)
+            //print(minY, maxY, minX, maxX, grid)
 
-        val allOps = allOps.filter { !opMap.containsValue(it) }
-        for (op in allOps) {
-            registers = test.before.mapValues { it.value.copy() }.toMutableMap()
-            operate(op, test.op.a, test.op.b, register(test.op.reg))
-            if (registers == test.after) {
-                //println(op)
-                if (opStr == null) {
-                    opStr = op
-                } else {
-                    continue@tests
+            if (x == maxX || x == minX || y == maxY) return@forEach
+
+            if (!grid.contains(x to y + 1)) {
+                water.add(x to y + 1)
+                grid[x to y + 1] = "|"
+            } else if (!grid.contains(x + 1 to y) || !grid.contains(x - 1 to y)) {
+                if (!grid.contains(x + 1 to y)) {
+                    water.add(x + 1 to y)
+                    grid[x + 1 to y] = "|"
                 }
+                if (!grid.contains(x - 1 to y)) {
+                    water.add(x - 1 to y)
+                    grid[x - 1 to y] = "|"
+                }
+            } else if (
+                cannotMove(grid, x, y, oldWater)
+            ) {
+                grid.put(x to y, "~")
             }
+
+            //print(minY, maxY, minX, maxX, grid)
         }
 
-        if (opStr != null) {
-            opMap[test.op.op] = opStr
+        print(minY, maxY, minX, maxX, grid)
+
+        println(++counter)
+
+        if (oldGrid == grid) {
+            println(grid.filterValues { it == "|" || it == "~" }.size)
+            return
         }
     }
+
 }
 
-val opMap = mutableMapOf<Int, String>()
-
-fun register(code: Int): Register {
-    return registers[code]!!
-}
-
-fun reg(code: Int): Int {
-    return registers[code]!!.vaule
-}
-
-var registers: MutableMap<Int, Register> = mutableMapOf()
-
-fun operate(op: String, valueA: Int, valueB: Int, reg: Register) {
-    reg.vaule = when (op) {
-        "addr" -> reg(valueA) + reg(valueB)
-        "addi" -> reg(valueA) + valueB
-        "mulr" -> reg(valueA) * reg(valueB)
-        "muli" -> reg(valueA) * valueB
-        "banr" -> reg(valueA) and reg(valueB)
-        "bani" -> reg(valueA) and valueB
-        "borr" -> reg(valueA) or reg(valueB)
-        "bori" -> reg(valueA) or valueB
-        "setr" -> reg(valueA)
-        "seti" -> valueA
-        "gtir" -> if (valueA > reg(valueB)) 1 else 0
-        "gtri" -> if (reg(valueA) > valueB) 1 else 0
-        "gtrr" -> if (reg(valueA) > reg(valueB)) 1 else 0
-        "eqir" -> if (valueA == reg(valueB)) 1 else 0
-        "eqri" -> if (reg(valueA) == valueB) 1 else 0
-        "eqrr" -> if (reg(valueA) == reg(valueB)) 1 else 0
-        else -> throw RuntimeException()
+private fun cannotMove(
+    grid: MutableMap<Pair<Int, Int>, String>,
+    x: Int,
+    y: Int,
+    oldWater: MutableList<Pair<Int, Int>>
+): Boolean {
+    val flows = listOf(x + 1 to y, x - 1 to y, x to y - 1).map { it to (grid[it] ?: ".") }.filter { it.second == "|" }
+    if (flows.size < 2) {
+        return true
     }
+
+    val index = oldWater.indexOf(x to y)
+    return flows.map { oldWater.indexOf(it.first) }.filter { it == index - 1 || it == index + 1 }.size < 2
 }
 
-val allOps = listOf(
-    "addr",
-    "addi",
-    "mulr",
-    "muli",
-    "banr",
-    "bani",
-    "borr",
-    "bori",
-    "setr",
-    "seti",
-    "gtir",
-    "gtri",
-    "gtrr",
-    "eqir",
-    "eqri",
-    "eqrr"
-)
+private fun print(
+    mnY: Int,
+    mxY: Int,
+    mnX: Int,
+    mxX: Int,
+    points: Map<Pair<Int, Int>, String>
+) {
+    val minX = (points.filterValues { it == "|" || it == "~" }.keys.minBy { it.first }?.first ?: mnX) - 2
+    val maxX = (points.filterValues { it == "|" || it == "~" }.keys.maxBy { it.first }?.first ?: mxX) + 2
+    val minY = (points.filterValues { it == "|" || it == "~" }.keys.minBy { it.second }?.second ?: mnY) - 2
+    val maxY = (points.filterValues { it == "|" || it == "~" }.keys.maxBy { it.second }?.second ?: mxY) + 2
 
-data class Register(var vaule: Int)
+    for (i in minX until 500) print(".")
+    print("+")
+    for (i in 500 + 1..maxX) print(".")
+    println()
+
+
+    for (j in 1..maxY) {
+        for (i in minX..maxX) {
+            print(if (points.contains(i to j)) points[i to j] else ".")
+        }
+
+        println("$j".padStart(10))
+    }
+
+    println()
+    println()
+}
