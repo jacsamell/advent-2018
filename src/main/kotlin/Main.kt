@@ -86,6 +86,7 @@ class Main {
 
         if (oldGrid == grid) {
             println(grid.filterValues { it == "|" || it == "~" }.size)
+            println(grid.filterValues { it == "~" }.size)
             return true
         }
         return false
